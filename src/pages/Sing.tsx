@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { Lrc, LrcLine, useRecoverAutoScrollImmediately } from 'react-lrc'
 import useTimer from '../utils/useTimer'
 import { LrcContext } from '../utils/context'
+import { MISCELLANEOUS_TYPES } from '@babel/types'
 
 interface LineProps {
   active: boolean
@@ -17,9 +18,13 @@ const Line: React.FC<LineProps> = ({ active, content }) => {
 
 export const Sing: React.FC = () => {
   const [play, setPlay] = useState(false)
+  const [playBack, setPlayBack] = useState(true)
+  const [hasVocal, setHasVocal] = useState(false)
+  const [destination, setDestination] = useState<AudioDestinationNode>(null)
+  const [mic, setMic] = useState<MediaStreamAudioSourceNode>(null)
   const lrc = useContext(LrcContext)
 
-  const audio = useMemo(() => new Audio('/lig.mp3'), []) 
+  const audio = useMemo(() => new Audio('/lig-nv.wav'), []) 
   const {
     currentMillisecond,
     setCurrentMillisecond,
@@ -48,6 +53,10 @@ export const Sing: React.FC = () => {
 
   }
 
+  const togglePlayback = () => {
+    setPlayBack((playback) => !playback)
+  }
+
   const togglePlay = () => {
     setPlay((play) => {
       if (play) {
@@ -61,20 +70,47 @@ export const Sing: React.FC = () => {
     })
   }
 
+  useEffect(() => {
+    initPlayback()
+  }, [])
+
+  useEffect(() => {
+    if (destination == null || mic == null) return
+    if (playBack) {
+      mic.connect(destination)
+    }
+    else {
+      mic.disconnect()
+    }
+  }, [destination, mic, playBack])
+
+  const initPlayback = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const audioContext = new AudioContext()
+    const mic = audioContext.createMediaStreamSource(stream)
+    setDestination(audioContext.destination)
+    setMic(mic)
+  }
+
   return (
     <>
       <div className="bg-[url('/assets/sample.webp')] bg-no-repeat bg-cover hover:cursor-pointer z-0 absolute h-full w-full"/>
       <div className='bg-black absolute z-[5] h-full w-full opacity-60'/>
-      <div className='text-3xl font-sans w-screen h-screen flex flex-row text-white z-10 relative' onClick={togglePlay}>
-        <div className='flex-1 bg-slate-800'>
-
+      <div className='text-3xl font-sans w-screen h-screen flex flex-row text-white z-10 relative'>
+        <div className='flex-1 bg-slate-800 flex flex-col'>
+          <button className='' onClick={() => changePitch(1)}>Key +</button>
+          <button onClick={() => changePitch(-1)}>Key -</button>
+          <button onClick={toggleVocal}>On/Off Vocal</button>
+          <button onClick={togglePlayback}>On/Off Playback</button>
         </div>
-        <div className="flex-[6] " >
+        <div className="flex-[6] flex flex-col hover:cursor-pointer" onClick={togglePlay}>
           <Lrc
             lrc={lrc}
             lineRenderer={lineRenderer}
             verticalSpace
             currentMillisecond={currentMillisecond}
+            recoverAutoScrollInterval={5000}
+            recoverAutoScrollSingal={signal}
           />
         </div>
         
