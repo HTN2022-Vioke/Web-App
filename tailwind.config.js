@@ -5,6 +5,9 @@ module.exports = {
   ],
   theme: {
     extend: {},
+    fontFamily: {
+      'body': ['Inter var','-apple-system','BlinkMacSystemFont','Segoe UI','Roboto'],
+    }
   },
   plugins: [],
 }
