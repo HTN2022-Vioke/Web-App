@@ -2,33 +2,54 @@ import React, { useRef, useState } from 'react';
 import { useHistory } from 'react-router';
 import { serverUrl } from '../utils/constants';
 
-export const ActualApp: React.FC = () => {
-  const inputRef = useRef(null)
-  const [selectedFile, setSelectedFile] = useState<any>()
+interface AAProps {
+  setLrc: any
+}
+
+export const ActualApp: React.FC<AAProps> = ({ setLrc }) => {
+  const audioInputRef = useRef(null)
+  const lrcInputRef = useRef(null)
+  const [selectedAudioFile, setSelectedAudioFile] = useState<any>()
+  const [selectLrcFile, setSelectedLrcFile] = useState<any>()
   const history = useHistory()
-    
-  const uploadPopup = () => {
-    inputRef.current.click()
+
+  const audioFileUploaded = (event) => {
+    setSelectedAudioFile(event.target.files[0])
   }
 
-  const fileUploaded = (event) => {
-    setSelectedFile(event.target.files[0])
+  const lrcFileUploaded = (event) => {
+    setSelectedLrcFile(event.target.files[0])
   }
 
   const uploadToServer = async () => {
     const formData = new FormData()
-    formData.append('File', selectedFile)
+    formData.append('File', selectedAudioFile)
     try {
       const res = await fetch(serverUrl, {
         method: 'POST',
         body: formData,
       })
       const json = await res.json()
-      history.push('/sing')
+      
     } catch (err) {
       console.error(err)
     }
 
+  }
+
+  const processLrc = async () => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const content = reader.result
+      setLrc(content)
+    }
+    reader.readAsText(selectLrcFile)
+  }
+
+  const proceed = async () => {
+    // uploadToServer()
+    processLrc()
+    history.push('/sing')
   }
   
   return (
@@ -37,12 +58,20 @@ export const ActualApp: React.FC = () => {
         <div className='font-extralight mt-auto mb-3'>
           Upload a song
         </div>
-        <input type="file" name="file" className="hidden" ref={inputRef} onChange={fileUploaded} accept=".mp3,audio/*"/>
+        <input type="file" name="file" className="hidden" ref={audioInputRef} onChange={audioFileUploaded} accept=".mp3,audio/*"/>
         <div className='mx-auto flex flex-row'>
-          <i className="fa fa-upload hover:cursor-pointer " onClick={uploadPopup}/>
-          <div className='text-sm mt-auto ml-2'>{selectedFile ? selectedFile.name : ''}</div>
+          <i className="fa fa-upload hover:cursor-pointer " onClick={() => audioInputRef.current.click()}/>
+          <div className='text-sm mt-auto ml-2'>{selectedAudioFile ? selectedAudioFile.name : ''}</div>
         </div>
-        <button className='font-light text-lg bg-slate-500 px-16 rounded-sm mt-3' onClick={uploadToServer}>
+        <div className='font-extralight mt-auto mb-3'>
+          Upload LRC file
+        </div>
+        <input type="file" name="file" className="hidden" ref={lrcInputRef} onChange={lrcFileUploaded} accept=".lrc,.txt"/>
+        <div className='mx-auto flex flex-row'>
+          <i className="fa fa-upload hover:cursor-pointer " onClick={() => lrcInputRef.current.click()}/>
+          <div className='text-sm mt-auto ml-2'>{selectLrcFile ? selectLrcFile.name : ''}</div>
+        </div>
+        <button className='font-light text-lg bg-slate-500 px-16 rounded-sm mt-3' onClick={proceed}>
           Next
         </button>
       </div>
