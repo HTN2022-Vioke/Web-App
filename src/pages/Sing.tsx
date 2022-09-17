@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { Lrc, LrcLine, useRecoverAutoScrollImmediately } from 'react-lrc'
 import useTimer from '../utils/useTimer'
 import { LrcContext } from '../utils/context'
-import { MISCELLANEOUS_TYPES } from '@babel/types'
 
 interface LineProps {
   active: boolean
@@ -19,12 +18,14 @@ const Line: React.FC<LineProps> = ({ active, content }) => {
 export const Sing: React.FC = () => {
   const [play, setPlay] = useState(false)
   const [playBack, setPlayBack] = useState(true)
-  const [hasVocal, setHasVocal] = useState(false)
+  const [curTrack, setCurTrack] = useState<HTMLAudioElement>(null)
   const [destination, setDestination] = useState<AudioDestinationNode>(null)
   const [mic, setMic] = useState<MediaStreamAudioSourceNode>(null)
   const lrc = useContext(LrcContext)
 
-  const audio = useMemo(() => new Audio('/lig-nv.wav'), []) 
+  const audioNv = useMemo(() => new Audio('/lig-nv.wav'), []) 
+  const audio = useMemo(() => new Audio('/lig.mp3'), [])
+
   const {
     currentMillisecond,
     setCurrentMillisecond,
@@ -50,7 +51,19 @@ export const Sing: React.FC = () => {
   }
 
   const toggleVocal = async () => {
-
+    const curTime = curTrack.currentTime
+    setCurTrack(track => {
+      track.pause()
+      if (track === audioNv) {
+        audio.currentTime = curTime
+        audio.play()
+        return audio
+      }
+      audioNv.currentTime = curTime
+      audioNv.play()
+      return audioNv
+    })
+    
   }
 
   const togglePlayback = () => {
@@ -60,11 +73,11 @@ export const Sing: React.FC = () => {
   const togglePlay = () => {
     setPlay((play) => {
       if (play) {
-        audio.pause()
+        curTrack.pause()
         pauseLrc()
         return false
       }
-      audio.play()
+      curTrack.play()
       playLrc()
       return true
     })
@@ -72,10 +85,11 @@ export const Sing: React.FC = () => {
 
   useEffect(() => {
     initPlayback()
+    setCurTrack(audioNv)
   }, [])
 
   useEffect(() => {
-    if (destination == null || mic == null) return
+    if (destination === null || mic === null) return
     if (playBack) {
       mic.connect(destination)
     }
