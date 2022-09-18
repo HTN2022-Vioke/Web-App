@@ -51,7 +51,8 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
 
   const proceed = async () => {
     setProcessing(true)
-    await Promise.all([uploadToServer(), processLrc()])
+    await uploadToServer() 
+    await processLrc()
     setProcessing(false)
     history.push('/sing')
   }
