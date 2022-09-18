@@ -48,6 +48,10 @@ export const Sing: React.FC = () => {
     try {
       const res = await fetch(`${serverUrl}/get-shifted-audio`, {
         method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           shift_semitones: adjustKey,
           wav_path: data.audioUrl,
@@ -62,6 +66,14 @@ export const Sing: React.FC = () => {
 
     setKey(adjustKey)
   }
+
+  useEffect(() => {
+    if (hasVocal) {
+      setCurTrack(audioUrl)
+    } else {
+      setCurTrack(audioNvUrl)
+    }
+  }, [audioUrl, audioNvUrl])
 
   const toggleVocal = async () => {
     setHasVocal(vocal => !vocal)

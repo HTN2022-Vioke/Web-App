@@ -33,7 +33,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
         body: formData,
       })
       const { audioUrl, audioNvUrl } = await res.json()
-      setData({ ...data, audioUrl, audioNvUrl })
+      setData(data => ({ ...data, audioUrl, audioNvUrl }))
     } catch (err) {
       console.error(err)
     }
@@ -44,7 +44,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
     const reader = new FileReader()
     reader.onload = () => {
       const content = reader.result
-      setData({ ...data, lrc: content })
+      setData(data => ({ ...data, lrc: content }))
     }
     reader.readAsText(selectLrcFile)
   }
