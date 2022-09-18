@@ -26,7 +26,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
 
   const uploadToServer = async () => {
     const formData = new FormData()
-    formData.append('File', selectedAudioFile)
+    formData.append('file', selectedAudioFile)
     try {
       const res = await fetch(`${serverUrl}/get-off-vocal`, {
         method: 'POST',

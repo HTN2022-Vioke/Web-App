@@ -191,7 +191,7 @@ export const Sing: React.FC = () => {
             recoverAutoScrollInterval={5000}
             recoverAutoScrollSingal={signal}
           />
-        <audio controls className='w-full h-40 mt-auto' ref={audioRef} src={curTrack}/>
+        <audio controls className='w-full h-40 mt-auto' ref={audioRef} src={`${serverUrl}${curTrack}`}/>
         </div>
       </div>
     </>
