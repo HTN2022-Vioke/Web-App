@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Lrc, LrcLine, useRecoverAutoScrollImmediately } from 'react-lrc'
 import { useHistory } from 'react-router'
+import { serverUrl } from '../utils/constants'
 import { DataContext } from '../utils/context'
 
 interface LineProps {
@@ -23,8 +24,11 @@ export const Sing: React.FC = () => {
   const [destination, setDestination] = useState<AudioDestinationNode>(null)
   const [mic, setMic] = useState<MediaStreamAudioSourceNode>(null)
   const [curKey, setKey] = useState(0)
+  const [adjustKey, setAdjustKey] = useState(curKey)
   const [curTime, setCurTime] = useState(0)
   const data = useContext(DataContext)
+  const [audioUrl, setAudioUrl] = useState(data.audioUrl)
+  const [audioNvUrl, setAudioNvUrl] = useState(data.audioNvUrl)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const history = useHistory()
@@ -40,17 +44,32 @@ export const Sing: React.FC = () => {
     []
   )
 
-  const keyShift =  async () => {
-  
+  const keyShift = async () => {
+    try {
+      const res = await fetch(`${serverUrl}/get-shifted-audio`, {
+        method: 'POST',
+        body: JSON.stringify({
+          shift_semitones: adjustKey,
+          wav_path: data.audioUrl,
+        }),
+      })
+      const body = await res.json()
+      setAudioUrl(body.audioUrl)
+      setAudioNvUrl(body.audioNvUrl)
+    } catch (err) {
+      console.error(err)
+    }
+
+    setKey(adjustKey)
   }
 
   const toggleVocal = async () => {
     setHasVocal(vocal => !vocal)
     setCurTrack(track => {
       if (hasVocal) {
-        return data.audioNvUrl
+        return audioNvUrl
       }
-      return data.audioUrl
+      return audioUrl
     })
     
   }
@@ -99,12 +118,16 @@ export const Sing: React.FC = () => {
     setCurTime(0)
     setKey(0)
     setHasVocal(false)
+    setAdjustKey(0)
   }
 
   useEffect(() => {
     initPlayback()
-    if (data)
+    if (data) {
+      setAudioUrl(data.audioUrl)
+      setAudioNvUrl(data.audioNvUrl)
       setCurTrack(data.audioNvUrl)
+    }
 
     return resetSettings
   }, [data])
@@ -145,12 +168,13 @@ export const Sing: React.FC = () => {
       <div className='bg-black absolute z-[5] h-full w-full opacity-60'/>
       <div className='text-3xl font-sans w-screen h-screen flex flex-row text-white z-10 relative'>
         <div className='flex-1 bg-gradient-to-b from-slate-800 to-cyan-800 flex flex-col text-base text-center px-2 py-4'>
-          <div>Key change (semitones): {curKey > 0 ? `+${curKey}` : curKey}</div>
+          <div>Key change (semitones): {curKey > 0 ? `+${curKey}` : curKey} </div>
+          <div>Modification: {adjustKey > 0 ? `+${adjustKey}` : adjustKey} </div>
           <div className='flex flex-row  align-middle my-1'>
-            <button className='p-auto border flex-1 rounded-tl rounded-bl' onClick={() => setKey(key => key - 1)}>key -</button>
-            <button className='p-auto border flex-1 rounded-tr rounded-br' onClick={() => setKey(key => key + 1)}>key +</button>
+            <button className='p-auto border flex-1 rounded-tl rounded-bl' onClick={() => setAdjustKey(key => key - 1)}>key -</button>
+            <button className='p-auto border flex-1 rounded-tr rounded-br' onClick={() => setAdjustKey(key => key + 1)}>key +</button>
           </div>
-          <button className='p-auto border rounded' onClick={keyShift}>Confirm</button>
+          <button className='p-auto border rounded' onClick={keyShift}>Apply</button>
           <div className='mt-5'>Vocal: {hasVocal ? 'enabled' : 'disabled'}</div>
           <button onClick={toggleVocal} className='p-auto border my-1 rounded'>{hasVocal ? 'Disable vocal' : 'Enable vocal'}</button>
           <div className='mt-5'>Playback: {playBack ? 'enabled' : 'disabled'}</div>

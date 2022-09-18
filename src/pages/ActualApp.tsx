@@ -28,8 +28,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
     const formData = new FormData()
     formData.append('File', selectedAudioFile)
     try {
-      setProcessing(true)
-      const res = await fetch(serverUrl, {
+      const res = await fetch(`${serverUrl}/get-off-vocal`, {
         method: 'POST',
         body: formData,
       })
@@ -51,8 +50,9 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
   }
 
   const proceed = async () => {
-    // uploadToServer()
-    processLrc()
+    setProcessing(true)
+    await Promise.all([uploadToServer(), processLrc()])
+    setProcessing(false)
     history.push('/sing')
   }
   
