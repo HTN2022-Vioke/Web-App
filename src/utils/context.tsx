@@ -1,5 +1,9 @@
 import React from 'react'
 
-export const lrc = ''
+export const data = {
+  lrc: '',
+  audioUrl: '/lig.mp3',
+  audioNvUrl: '/lig-nv.wav',
+}
 
-export const LrcContext = React.createContext(lrc)
+export const DataContext = React.createContext(data)

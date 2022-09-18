@@ -1,17 +1,18 @@
 import React, {useEffect, useState} from 'react';
 import {BrowserRouter as Router, Switch, Route} from 'react-router-dom';
 import { Main, ActualApp, Sing } from './pages'
-import { LrcContext, lrc as lrcInit } from './utils/context'
+import { DataContext, data as dataInit } from './utils/context'
 
 export const App: React.FC = () => {
-  const [lrc, setLrc] = useState('')
-  
+  const [data, setData] = useState(dataInit)
+  console.log(data)
+
   return (
-    <LrcContext.Provider value={lrc}>
+    <DataContext.Provider value={data}>
       <Router>
         <Switch>
           <Route path="/app">
-            <ActualApp setLrc={setLrc}/>
+            <ActualApp setData={setData}/>
           </Route>
           <Route path="/sing">
             <Sing/>
@@ -22,7 +23,7 @@ export const App: React.FC = () => {
           
         </Switch>
       </Router>
-    </LrcContext.Provider>
+    </DataContext.Provider>
   )
 };
 

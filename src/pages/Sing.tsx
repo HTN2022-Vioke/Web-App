@@ -1,7 +1,7 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Lrc, LrcLine, useRecoverAutoScrollImmediately } from 'react-lrc'
-import useTimer from '../utils/useTimer'
-import { LrcContext } from '../utils/context'
+import { useHistory } from 'react-router'
+import { DataContext } from '../utils/context'
 
 interface LineProps {
   active: boolean
@@ -17,26 +17,20 @@ const Line: React.FC<LineProps> = ({ active, content }) => {
 
 export const Sing: React.FC = () => {
   const [play, setPlay] = useState(false)
-  const [playBack, setPlayBack] = useState(true)
-  const [curTrack, setCurTrack] = useState<HTMLAudioElement>(null)
+  const [playBack, setPlayBack] = useState(false)
+  const [hasVocal, setHasVocal] = useState(false)
+  const [curTrack, setCurTrack] = useState<string>('')
   const [destination, setDestination] = useState<AudioDestinationNode>(null)
   const [mic, setMic] = useState<MediaStreamAudioSourceNode>(null)
-  const lrc = useContext(LrcContext)
-
-  const audioNv = useMemo(() => new Audio('/lig-nv.wav'), []) 
-  const audio = useMemo(() => new Audio('/lig.mp3'), [])
-
-  const {
-    currentMillisecond,
-    setCurrentMillisecond,
-    reset,
-    play: playLrc,
-    pause: pauseLrc,
-  } = useTimer()
+  const [curKey, setKey] = useState(0)
+  const [curTime, setCurTime] = useState(0)
+  const data = useContext(DataContext)
+  
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const history = useHistory()
 
   const {
     signal,
-    recoverAutoScrollImmediately
   } = useRecoverAutoScrollImmediately()
 
   const lineRenderer = useCallback(
@@ -46,25 +40,43 @@ export const Sing: React.FC = () => {
     []
   )
 
-  const changePitch =  async (change: number) => {
-
+  const keyShift =  async () => {
+  
   }
 
   const toggleVocal = async () => {
-    const curTime = curTrack.currentTime
+    setHasVocal(vocal => !vocal)
     setCurTrack(track => {
-      track.pause()
-      if (track === audioNv) {
-        audio.currentTime = curTime
-        audio.play()
-        return audio
+      if (hasVocal) {
+        return data.audioNvUrl
       }
-      audioNv.currentTime = curTime
-      audioNv.play()
-      return audioNv
+      return data.audioUrl
     })
     
   }
+
+  useEffect(() => {
+    if (!play) return
+    (async () => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = curTime
+        await audioRef.current.play()
+      }
+    })()
+  }, [curTrack])
+
+  useEffect(() => {
+    if (audioRef.current === null) return
+    audioRef.current.addEventListener('play', () => setPlay(true))
+    audioRef.current.addEventListener('pause', () => setPlay(false))
+  }, [audioRef])
+
+  useEffect(() => {
+    if (audioRef.current === null) return
+    audioRef.current.ontimeupdate = () => {
+      setCurTime(audioRef.current.currentTime)
+    }
+  }, [audioRef])
 
   const togglePlayback = () => {
     setPlayBack((playback) => !playback)
@@ -73,20 +85,29 @@ export const Sing: React.FC = () => {
   const togglePlay = () => {
     setPlay((play) => {
       if (play) {
-        curTrack.pause()
-        pauseLrc()
+        audioRef.current.pause()
         return false
       }
-      curTrack.play()
-      playLrc()
+      audioRef.current.play()
       return true
     })
   }
 
+  const resetSettings = () => {
+    setPlay(false)
+    setPlayBack(false)
+    setCurTime(0)
+    setKey(0)
+    setHasVocal(false)
+  }
+
   useEffect(() => {
     initPlayback()
-    setCurTrack(audioNv)
-  }, [])
+    if (data)
+      setCurTrack(data.audioNvUrl)
+
+    return resetSettings
+  }, [data])
 
   useEffect(() => {
     if (destination === null || mic === null) return
@@ -99,11 +120,23 @@ export const Sing: React.FC = () => {
   }, [destination, mic, playBack])
 
   const initPlayback = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const audioContext = new AudioContext()
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        latency: 0,
+      }})
+    const audioContext = new AudioContext({
+      latencyHint: 'playback',
+    })
     const mic = audioContext.createMediaStreamSource(stream)
     setDestination(audioContext.destination)
     setMic(mic)
+  }
+
+  const newSong = () => {
+    history.push('/app')
   }
 
   return (
@@ -111,24 +144,32 @@ export const Sing: React.FC = () => {
       <div className="bg-[url('/assets/sample.webp')] bg-no-repeat bg-cover hover:cursor-pointer z-0 absolute h-full w-full"/>
       <div className='bg-black absolute z-[5] h-full w-full opacity-60'/>
       <div className='text-3xl font-sans w-screen h-screen flex flex-row text-white z-10 relative'>
-        <div className='flex-1 bg-slate-800 flex flex-col'>
-          <button className='' onClick={() => changePitch(1)}>Key +</button>
-          <button onClick={() => changePitch(-1)}>Key -</button>
-          <button onClick={toggleVocal}>On/Off Vocal</button>
-          <button onClick={togglePlayback}>On/Off Playback</button>
+        <div className='flex-1 bg-gradient-to-b from-slate-800 to-cyan-800 flex flex-col text-base text-center px-2 py-4'>
+          <div>Key change (semitones): {curKey > 0 ? `+${curKey}` : curKey}</div>
+          <div className='flex flex-row  align-middle my-1'>
+            <button className='p-auto border flex-1 rounded-tl rounded-bl' onClick={() => setKey(key => key - 1)}>key -</button>
+            <button className='p-auto border flex-1 rounded-tr rounded-br' onClick={() => setKey(key => key + 1)}>key +</button>
+          </div>
+          <button className='p-auto border rounded' onClick={keyShift}>Confirm</button>
+          <div className='mt-5'>Vocal: {hasVocal ? 'enabled' : 'disabled'}</div>
+          <button onClick={toggleVocal} className='p-auto border my-1 rounded'>{hasVocal ? 'Disable vocal' : 'Enable vocal'}</button>
+          <div className='mt-5'>Playback: {playBack ? 'enabled' : 'disabled'}</div>
+          <button onClick={togglePlayback} className='p-auto border my-1 rounded'>{playBack ? 'Disable playback' : 'Enable playback'}</button>
+
+          <button onClick={newSong} className='p-auto border mt-auto rounded py-4 mb-3'>New song</button>
         </div>
         <div className="flex-[6] flex flex-col hover:cursor-pointer" onClick={togglePlay}>
           <Lrc
-            lrc={lrc}
+            lrc={data.lrc}
             lineRenderer={lineRenderer}
             verticalSpace
-            currentMillisecond={currentMillisecond}
+            currentMillisecond={audioRef.current ? audioRef.current.currentTime*1000 : 0}
             recoverAutoScrollInterval={5000}
             recoverAutoScrollSingal={signal}
           />
+        <audio controls className='w-full h-40 mt-auto' ref={audioRef} src={curTrack}/>
         </div>
-        
-      </div>\
+      </div>
     </>
   )
 }
