@@ -16,7 +16,25 @@ const Line: React.FC<LineProps> = ({ active, content }) => {
   return <div className='text-center text-gray-200 my-5'>{content}</div>
 }
 
-export const Sing: React.FC = () => {
+interface SingProps {
+  setData: any
+}
+
+interface SessionData {
+  uuid: string
+  audio: {
+    uuid: string
+    name: string
+    lrcFile: string
+    vocalFile: string
+    offVocalFile: string
+  }
+  timestamp: number
+  curKeyShift: number
+  hasVocal: boolean
+}
+
+export const Sing: React.FC<SingProps> = ({ setData }) => {
   const [play, setPlay] = useState(false)
   const [playBack, setPlayBack] = useState(false)
   const [hasVocal, setHasVocal] = useState(false)
@@ -29,6 +47,7 @@ export const Sing: React.FC = () => {
   const data = useContext(DataContext)
   const [audioUrl, setAudioUrl] = useState(data.audioUrl)
   const [audioNvUrl, setAudioNvUrl] = useState(data.audioNvUrl)
+  const [sessionData, setSessionData] = useState<SessionData | null>(null)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const history = useHistory()
@@ -67,6 +86,106 @@ export const Sing: React.FC = () => {
     setKey(adjustKey)
   }
 
+  const updateSession = async (sessionData) => {
+    console.log('update session', sessionData)
+    const updateData = {
+      uuid: sessionData.uuid,
+      audio: {
+        uuid: sessionData.audio.uuid,
+        name: data.audioUrl,
+        lrc_file: data.lrcFile,
+        vocal_file: audioUrl,
+        off_vocal_file: audioNvUrl,
+      },
+      timestamp: curTime ?? 0,
+      cur_key_shift: curKey ?? 0,
+      has_vocal: hasVocal ?? false,
+    }
+    try {
+      await fetch(`${serverUrl}/session`, {
+        method: 'PATCH',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData),
+        credentials: 'include',
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const getSession = async () => {
+    const resp = await fetch(`${serverUrl}/session`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+    if (resp.status === 404) return null
+    const sessionData = await resp.json()
+    console.log('data', sessionData)
+    return sessionData
+  }
+
+  const createSession = async (): Promise<SessionData> => {
+    const resp = await fetch(`${serverUrl}/session`, {
+      method: 'POST', 
+      headers: {
+        'Accept': '*/*',
+      },
+      credentials: 'include',
+    })
+    const sessionData = await resp.json()
+    
+    await updateSession(sessionData)
+    return sessionData
+  }
+
+  const initLrc = async (file: string) => {
+    const resp = await fetch(`${serverUrl}/files/${file}`, {
+      method: 'GET',
+    })
+    const lrc = await resp.text()
+    setData(data => ({ ...data, lrc }))
+  }
+
+  const initSession = async () => {
+    let sessionData = await getSession()
+    if (sessionData === null) {
+      setSessionData(await createSession())
+    } else {
+      setSessionData(sessionData)
+      setKey(sessionData.curKeyShift)
+      setAdjustKey(sessionData.curKeyShift)
+      setCurTime(Number(sessionData.timestamp))
+      console.log('audio', audioNvUrl, audioNvUrl.length)
+      if (audioUrl === '') {
+        console.log('???')
+        console.log(sessionData.audio.vocalFile)
+        setAudioUrl(sessionData.audio.vocalFile)
+        setAudioNvUrl(sessionData.audio.offVocalFile)
+        setCurTrack(sessionData.hasVocal === 'True' ? sessionData.audio.vocalFile : sessionData.audio.offVocalFile)
+      }
+      if (sessionData.audio.lrcFile) {
+        setData(data => ({ ...data, lrcFile: sessionData.audio.lrcFile }))
+        await initLrc(sessionData.audio.lrcFile)
+      }
+    }
+    // audioRef.current.currentTime = sessionData.timestamp
+  }
+
+  useEffect(() => {
+    initSession()
+    // window.addEventListener('onbeforeunload', () => {
+    //   console.log('data unloiad', sessionData, data)
+    //   updateSession(sessionData)
+    // })
+    // return () => {
+    //   updateSession(sessionData)
+    //   console.log('exit')
+    // }
+  }, [])
+
   useEffect(() => {
     if (hasVocal) {
       setCurTrack(audioUrl)
@@ -78,7 +197,7 @@ export const Sing: React.FC = () => {
   const toggleVocal = async () => {
     setHasVocal(vocal => !vocal)
     setCurTrack(track => {
-      if (hasVocal) {
+      if (track === audioUrl) {
         return audioNvUrl
       }
       return audioUrl
@@ -104,10 +223,11 @@ export const Sing: React.FC = () => {
 
   useEffect(() => {
     if (audioRef.current === null) return
-    audioRef.current.ontimeupdate = () => {
+    audioRef.current.addEventListener('timeupdate',() => {
+      console.log('time update', audioRef?.current?.currentTime)
       setCurTime(audioRef.current.currentTime)
-    }
-  }, [audioRef])
+    })
+  }, [audioRef.current])
 
   const togglePlayback = () => {
     setPlayBack((playback) => !playback)
@@ -142,7 +262,7 @@ export const Sing: React.FC = () => {
     }
 
     return resetSettings
-  }, [data])
+  }, [])
 
   useEffect(() => {
     if (destination === null || mic === null) return
@@ -160,7 +280,6 @@ export const Sing: React.FC = () => {
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false,
-        latency: 0,
       }})
     const audioContext = new AudioContext({
       latencyHint: 'playback',
@@ -173,6 +292,17 @@ export const Sing: React.FC = () => {
   const newSong = () => {
     history.push('/app')
   }
+
+  if (!curTrack || !data.lrc) {
+    console.log(data)
+    return (
+      <div>
+        Loading...
+      </div>
+    )
+  }
+
+  console.log(audioRef?.current?.currentTime, curTime)
 
   return (
     <>
@@ -199,11 +329,11 @@ export const Sing: React.FC = () => {
             lrc={data.lrc}
             lineRenderer={lineRenderer}
             verticalSpace
-            currentMillisecond={audioRef.current ? audioRef.current.currentTime*1000 : 0}
+            currentMillisecond={curTime * 1000}
             recoverAutoScrollInterval={5000}
             recoverAutoScrollSingal={signal}
           />
-        <audio controls className='w-full h-40 mt-auto' ref={audioRef} src={`${serverUrl}${curTrack}`}/>
+        <audio controls className='w-full h-40 mt-auto' ref={audioRef} src={`${serverUrl}/files/${curTrack}`} />
         </div>
       </div>
     </>

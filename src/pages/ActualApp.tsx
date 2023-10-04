@@ -7,11 +7,20 @@ interface AAProps {
   setData: any
 }
 
+export const processLrc = (lrcFile: Blob) => 
+  new Promise((resolve) =>  {
+    const reader = new FileReader()
+    reader.onload = () => {
+      resolve(reader.result)
+    }
+    reader.readAsText(lrcFile)
+  })
+
 export const ActualApp: React.FC<AAProps> = ({ setData }) => {
   const audioInputRef = useRef(null)
   const lrcInputRef = useRef(null)
   const [selectedAudioFile, setSelectedAudioFile] = useState<any>()
-  const [selectLrcFile, setSelectedLrcFile] = useState<any>()
+  const [selectedLrcFile, setSelectedLrcFile] = useState<any>()
   const [processing, setProcessing] = useState(false)
   const history = useHistory()
   const data = useContext(DataContext)
@@ -25,6 +34,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
   }
 
   const uploadToServer = async () => {
+    setData(data => ({ ...data, lrcFile: selectedLrcFile.name }))
     const formData = new FormData()
     formData.append('file', selectedAudioFile)
     try {
@@ -40,21 +50,15 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
 
   }
 
-  const processLrc = async () => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const content = reader.result
-      setData(data => ({ ...data, lrc: content }))
-    }
-    reader.readAsText(selectLrcFile)
-  }
+  
 
   const proceed = async () => {
     setProcessing(true)
-    await uploadToServer() 
-    await processLrc()
+    await uploadToServer()
+    const lrc = await processLrc(selectedLrcFile)
+    setData(data => ({ ...data, lrc }))
     setProcessing(false)
-    history.push('/sing')
+    history.push('/sing', data)
   }
   
   return (
@@ -78,7 +82,7 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
             <input type="file" name="file" className="hidden" ref={lrcInputRef} onChange={lrcFileUploaded} accept=".lrc,.txt"/>
             <div className='mr-auto flex flex-row'>
               <i className="fa fa-upload hover:cursor-pointer " onClick={() => lrcInputRef.current.click()}/>
-              <div className='text-sm mt-auto ml-2'>{selectLrcFile ? selectLrcFile.name : ''}</div>
+              <div className='text-sm mt-auto ml-2'>{selectedLrcFile ? selectedLrcFile.name : ''}</div>
             </div>
           </div>
         </div>
