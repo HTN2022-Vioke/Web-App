@@ -48,6 +48,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
   const [audioUrl, setAudioUrl] = useState(data.audioUrl)
   const [audioNvUrl, setAudioNvUrl] = useState(data.audioNvUrl)
   const [sessionData, setSessionData] = useState<SessionData | null>(null)
+  const [shouldSave, setShouldSave] = useState(true)
   
   const audioRef = useRef<HTMLAudioElement>(null)
   const history = useHistory()
@@ -86,9 +87,20 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     setKey(adjustKey)
   }
 
-  const updateSession = async (sessionData, overrideData=undefined) => {
+  const updateSessionAPI = (updateData) =>
+    fetch(`${serverUrl}/session`, {
+      method: 'PATCH',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData),
+      credentials: 'include',
+    })
+
+  const updateSession = async (sessionData) => {
     console.log('update session', sessionData)
-    const updateData = overrideData ?? {
+    const updateData = {
       uuid: sessionData.uuid,
       audio: {
         uuid: sessionData.audio.uuid,
@@ -102,20 +114,33 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
       has_vocal: hasVocal ?? false,
     }
     try {
-      await fetch(`${serverUrl}/session`, {
-        method: 'PATCH',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updateData),
-        credentials: 'include',
-      })
+      await updateSessionAPI(updateData)
     } catch (err) {
       console.error(err)
     }
   }
 
+  const clearSession = async (sessionData) => {
+    const updateData = {
+      uuid: sessionData.uuid,
+      audio: {
+        uuid: sessionData.audio.uuid,
+        name: '',
+        lrc_file: '',
+        vocal_file: '',
+        off_vocal_file: '',
+      },
+      timestamp: 0,
+      cur_key_shift: 0,
+      has_vocal: false,
+    }
+    try {
+      await updateSessionAPI(updateData)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+  
   const getSession = async () => {
     const resp = await fetch(`${serverUrl}/session`, {
       method: 'GET',
@@ -206,9 +231,13 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
   useEffect(() => {
     if (audioRef.current === null) return
     audioRef.current.currentTime = curTime
-    audioRef.current.addEventListener('timeupdate',() => {
+    const updateCurTime = () => {
       setCurTime(audioRef.current.currentTime)
-    })
+    }
+    audioRef.current.addEventListener('timeupdate',updateCurTime)
+    return () => {
+      audioRef.current.removeEventListener('timeupdate', updateCurTime)
+    }
   }, [audioRef.current])
 
   const togglePlayback = () => {
@@ -228,7 +257,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
 
   useEffect(() => {
     const updateSessionData = (e) => { 
-      updateSession(sessionData)
+      if (shouldSave) updateSession(sessionData)
     }
     window.addEventListener('beforeunload', updateSessionData)
     return () => {
@@ -271,7 +300,9 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     setMic(mic)
   }
 
-  const newSong = () => {
+  const newSong = async () => {
+    setShouldSave(false)
+    await clearSession(sessionData)
     history.push('/app')
   }
 
