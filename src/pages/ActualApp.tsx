@@ -76,6 +76,17 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
     } catch (err) {
       console.error(err)
     }
+
+    const formDataLrc = new FormData()
+    formDataLrc.append('file', selectedLrcFile)
+    try {
+      const res = await fetch(`${serverUrl}/upload-lrc`, {
+        method: 'POST',
+        body: formDataLrc,
+      })
+    } catch (err) {
+      console.error(err)
+    }
   }  
 
   const getInitAudioFiles = async () => {
