@@ -16,6 +16,37 @@ export const processLrc = (lrcFile: Blob) =>
     reader.readAsText(lrcFile)
   })
 
+export const getVocalFiles = async (name, keyShift) => {
+  const data = [
+    {
+      name,
+      has_vocal: true,
+      cur_key_shift: keyShift,
+    },
+    {
+      name,
+      has_vocal: false,
+      cur_key_shift: keyShift,
+    },
+  ]
+  
+  try {
+    const res = await fetch(`${serverUrl}/get-audio-file`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+    })
+    const filePaths = await res.json()
+    return filePaths
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 export const ActualApp: React.FC<AAProps> = ({ setData }) => {
   const audioInputRef = useRef(null)
   const lrcInputRef = useRef(null)
@@ -38,23 +69,30 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
     const formData = new FormData()
     formData.append('file', selectedAudioFile)
     try {
-      const res = await fetch(`${serverUrl}/get-off-vocal`, {
+      const res = await fetch(`${serverUrl}/upload-vocal`, {
         method: 'POST',
         body: formData,
       })
-      const { audioUrl, audioNvUrl } = await res.json()
-      setData(data => ({ ...data, audioUrl, audioNvUrl }))
     } catch (err) {
       console.error(err)
     }
+  }  
 
+  const getInitAudioFiles = async () => {
+    const filePaths = await getVocalFiles(selectedAudioFile.name, 0)
+    setData(data => {
+      return {
+        ...data,
+        audioUrl: filePaths[0].url,
+        audioNvUrl: filePaths[1].url,
+      }
+    })
   }
-
-  
 
   const proceed = async () => {
     setProcessing(true)
     await uploadToServer()
+    await getInitAudioFiles()
     const lrc = await processLrc(selectedLrcFile)
     setData(data => ({ ...data, lrc }))
     setProcessing(false)

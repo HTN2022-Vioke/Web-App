@@ -3,6 +3,7 @@ import { Lrc, LrcLine, useRecoverAutoScrollImmediately } from 'react-lrc'
 import { useHistory } from 'react-router'
 import { serverUrl } from '../utils/constants'
 import { DataContext } from '../utils/context'
+import { getVocalFiles } from './ActualApp'
 
 interface LineProps {
   active: boolean
@@ -26,8 +27,6 @@ interface SessionData {
     uuid: string
     name: string
     lrcFile: string
-    vocalFile: string
-    offVocalFile: string
   }
   timestamp: number
   curKeyShift: number
@@ -66,20 +65,9 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
 
   const keyShift = async () => {
     try {
-      const res = await fetch(`${serverUrl}/get-shifted-audio`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          shift_semitones: adjustKey,
-          wav_path: data.audioUrl,
-        }),
-      })
-      const body = await res.json()
-      setAudioUrl(body.audioUrl)
-      setAudioNvUrl(body.audioNvUrl)
+      const fileUrls = await getVocalFiles(sessionData.audio.name, adjustKey)
+      setAudioUrl(fileUrls[0].url)
+      setAudioNvUrl(fileUrls[1].url)
     } catch (err) {
       console.error(err)
     }
@@ -106,8 +94,6 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
         uuid: sessionData.audio.uuid,
         name: data.audioUrl,
         lrc_file: data.lrcFile,
-        vocal_file: audioUrl,
-        off_vocal_file: audioNvUrl,
       },
       timestamp: curTime ?? 0,
       cur_key_shift: curKey ?? 0,
@@ -127,8 +113,6 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
         uuid: sessionData.audio.uuid,
         name: '',
         lrc_file: '',
-        vocal_file: '',
-        off_vocal_file: '',
       },
       timestamp: 0,
       cur_key_shift: 0,
@@ -181,12 +165,20 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     } else {
       setSessionData({ ...sessionData })
       setKey(sessionData.curKeyShift)
-      setAdjustKey(sessionData.curKeyShift)
+      setAdjustKey(Number(sessionData.curKeyShift))
       setCurTime(Number(sessionData.timestamp))
       if (audioUrl === '') {
         console.log('???')
-        setAudioUrl(sessionData.audio.vocalFile)
-        setAudioNvUrl(sessionData.audio.offVocalFile)
+        const filePaths = await getVocalFiles(sessionData.audio.name, 0)
+        // setData(data => {
+        //   return {
+        //     ...data,
+        //     audioUrl: filePaths[0].url,
+        //     audioNvUrl: filePaths[1].url,
+        //   }
+        // })
+        setAudioUrl(filePaths[0].url)
+        setAudioNvUrl(filePaths[1].url)
         setHasVocal(sessionData.hasVocal === 'True')
       }
       if (sessionData.audio.lrcFile) {
