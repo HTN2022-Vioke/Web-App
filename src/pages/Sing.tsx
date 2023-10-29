@@ -86,9 +86,9 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     setKey(adjustKey)
   }
 
-  const updateSession = async (sessionData) => {
+  const updateSession = async (sessionData, overrideData=undefined) => {
     console.log('update session', sessionData)
-    const updateData = {
+    const updateData = overrideData ?? {
       uuid: sessionData.uuid,
       audio: {
         uuid: sessionData.audio.uuid,
@@ -137,7 +137,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     })
     const sessionData = await resp.json()
     
-    await updateSession(sessionData)
+    await updateSession({ ...sessionData })
     return sessionData
   }
 
@@ -154,37 +154,22 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     if (sessionData === null) {
       setSessionData(await createSession())
     } else {
-      setSessionData(sessionData)
+      setSessionData({ ...sessionData })
       setKey(sessionData.curKeyShift)
       setAdjustKey(sessionData.curKeyShift)
       setCurTime(Number(sessionData.timestamp))
-      console.log('audio', audioNvUrl, audioNvUrl.length)
       if (audioUrl === '') {
         console.log('???')
-        console.log(sessionData.audio.vocalFile)
         setAudioUrl(sessionData.audio.vocalFile)
         setAudioNvUrl(sessionData.audio.offVocalFile)
-        setCurTrack(sessionData.hasVocal === 'True' ? sessionData.audio.vocalFile : sessionData.audio.offVocalFile)
+        setHasVocal(sessionData.hasVocal === 'True')
       }
       if (sessionData.audio.lrcFile) {
         setData(data => ({ ...data, lrcFile: sessionData.audio.lrcFile }))
         await initLrc(sessionData.audio.lrcFile)
       }
     }
-    // audioRef.current.currentTime = sessionData.timestamp
   }
-
-  useEffect(() => {
-    initSession()
-    // window.addEventListener('onbeforeunload', () => {
-    //   console.log('data unloiad', sessionData, data)
-    //   updateSession(sessionData)
-    // })
-    // return () => {
-    //   updateSession(sessionData)
-    //   console.log('exit')
-    // }
-  }, [])
 
   useEffect(() => {
     if (hasVocal) {
@@ -196,14 +181,11 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
 
   const toggleVocal = async () => {
     setHasVocal(vocal => !vocal)
-    setCurTrack(track => {
-      if (track === audioUrl) {
-        return audioNvUrl
-      }
-      return audioUrl
-    })
-    
   }
+
+  useEffect(() => {
+    setCurTrack(hasVocal ? audioUrl : audioNvUrl)
+  }, [hasVocal])
 
   useEffect(() => {
     if (!play) return
@@ -223,8 +205,8 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
 
   useEffect(() => {
     if (audioRef.current === null) return
+    audioRef.current.currentTime = curTime
     audioRef.current.addEventListener('timeupdate',() => {
-      console.log('time update', audioRef?.current?.currentTime)
       setCurTime(audioRef.current.currentTime)
     })
   }, [audioRef.current])
@@ -244,24 +226,24 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     })
   }
 
-  const resetSettings = () => {
-    setPlay(false)
-    setPlayBack(false)
-    setCurTime(0)
-    setKey(0)
-    setHasVocal(false)
-    setAdjustKey(0)
-  }
+  useEffect(() => {
+    const updateSessionData = (e) => { 
+      updateSession(sessionData)
+    }
+    window.addEventListener('beforeunload', updateSessionData)
+    return () => {
+      window.removeEventListener('beforeunload', updateSessionData)
+    }
+  }, [sessionData, curTime, curKey, hasVocal, audioUrl, audioNvUrl, data])
 
   useEffect(() => {
     initPlayback()
+    initSession()
     if (data) {
       setAudioUrl(data.audioUrl)
       setAudioNvUrl(data.audioNvUrl)
       setCurTrack(data.audioNvUrl)
     }
-
-    return resetSettings
   }, [])
 
   useEffect(() => {
@@ -301,8 +283,6 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
       </div>
     )
   }
-
-  console.log(audioRef?.current?.currentTime, curTime)
 
   return (
     <>
