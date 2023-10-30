@@ -96,7 +96,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
         lrc_file: data.lrcFile,
       },
       timestamp: curTime ?? 0,
-      cur_key_shift: curKey ?? 0,
+      key_shift: curKey ?? 0,
       has_vocal: hasVocal ?? false,
     }
     try {
@@ -115,7 +115,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
         lrc_file: '',
       },
       timestamp: 0,
-      cur_key_shift: 0,
+      key_shift: 0,
       has_vocal: false,
     }
     try {

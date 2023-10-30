@@ -21,12 +21,12 @@ export const getVocalFiles = async (name, keyShift) => {
     {
       name,
       has_vocal: true,
-      cur_key_shift: keyShift,
+      key_shift: keyShift,
     },
     {
       name,
       has_vocal: false,
-      cur_key_shift: keyShift,
+      key_shift: keyShift,
     },
   ]
   
