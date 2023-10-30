@@ -29,7 +29,7 @@ interface SessionData {
     lrcFile: string
   }
   timestamp: number
-  curKeyShift: number
+  keyShift: number
   hasVocal: boolean
 }
 
@@ -161,12 +161,15 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
   const initSession = async () => {
     let sessionData = await getSession()
     if (sessionData === null) {
-      setSessionData(await createSession())
+      const sData = await createSession()
+      setSessionData(sData)
+      setData(data => ({ ...data, name: sData.audio.name }))
     } else {
       setSessionData({ ...sessionData })
-      setKey(sessionData.curKeyShift)
-      setAdjustKey(Number(sessionData.curKeyShift))
+      setKey(sessionData.keyShift)
+      setAdjustKey(Number(sessionData.keyShift))
       setCurTime(Number(sessionData.timestamp))
+      setData(data => ({ ...data, name: sessionData.audio.name }))
       if (audioUrl === '') {
         console.log('???')
         const filePaths = await getVocalFiles(sessionData.audio.name, 0)
