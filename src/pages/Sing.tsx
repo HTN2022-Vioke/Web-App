@@ -65,7 +65,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
 
   const keyShift = async () => {
     try {
-      const fileUrls = await getVocalFiles(sessionData.audio.name, adjustKey)
+      const fileUrls = await getVocalFiles(data.name, adjustKey)
       setAudioUrl(fileUrls[0].url)
       setAudioNvUrl(fileUrls[1].url)
     } catch (err) {
@@ -162,8 +162,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
     let sessionData = await getSession()
     if (sessionData === null) {
       const sData = await createSession()
-      setSessionData(sData)
-      setData(data => ({ ...data, name: sData.audio.name }))
+      setSessionData({ ...sData })
     } else {
       setSessionData({ ...sessionData })
       setKey(sessionData.keyShift)
@@ -172,7 +171,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
       setData(data => ({ ...data, name: sessionData.audio.name }))
       if (audioUrl === '') {
         console.log('???')
-        const filePaths = await getVocalFiles(sessionData.audio.name, 0)
+        const filePaths = await getVocalFiles(sessionData.audio.name, Number(sessionData.keyShift))
         // setData(data => {
         //   return {
         //     ...data,
@@ -196,6 +195,10 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
       setCurTrack(audioUrl)
     } else {
       setCurTrack(audioNvUrl)
+    }
+
+    if (audioRef.current) {
+      audioRef.current.currentTime = curTime
     }
   }, [audioUrl, audioNvUrl])
 
