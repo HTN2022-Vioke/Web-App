@@ -65,9 +65,10 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
   }
 
   const uploadToServer = async () => {
-    setData(data => ({ ...data, lrcFile: selectedLrcFile.name }))
+    const name = selectedAudioFile.name.slice(0, selectedAudioFile.name.lastIndexOf('.'))
     const formData = new FormData()
     formData.append('file', selectedAudioFile)
+    formData.append('name', name)
     try {
       const res = await fetch(`${serverUrl}/upload-vocal`, {
         method: 'POST',
@@ -79,18 +80,23 @@ export const ActualApp: React.FC<AAProps> = ({ setData }) => {
 
     const formDataLrc = new FormData()
     formDataLrc.append('file', selectedLrcFile)
+    formDataLrc.append('name', name)
     try {
       const res = await fetch(`${serverUrl}/upload-lrc`, {
         method: 'POST',
         body: formDataLrc,
       })
+      const { url } = await res.json()
+      setData(data => ({ ...data, lrcFile: url }))
     } catch (err) {
       console.error(err)
     }
+    setData(data => ({ ...data, name }))
   }  
 
   const getInitAudioFiles = async () => {
-    const filePaths = await getVocalFiles(selectedAudioFile.name, 0)
+    const name = selectedAudioFile.name.slice(0, selectedAudioFile.name.lastIndexOf('.'))
+    const filePaths = await getVocalFiles(name, 0)
     setData(data => {
       return {
         ...data,

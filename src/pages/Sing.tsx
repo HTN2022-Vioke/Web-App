@@ -92,7 +92,7 @@ export const Sing: React.FC<SingProps> = ({ setData }) => {
       uuid: sessionData.uuid,
       audio: {
         uuid: sessionData.audio.uuid,
-        name: data.audioUrl,
+        name: data.name,
         lrc_file: data.lrcFile,
       },
       timestamp: curTime ?? 0,

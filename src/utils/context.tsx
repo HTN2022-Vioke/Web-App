@@ -5,6 +5,7 @@ export const data = {
   lrcFile: '',
   audioUrl: '',
   audioNvUrl: '',
+  name: '',
 }
 
 export const DataContext = React.createContext(data)
